@@ -12,7 +12,7 @@ jobs:
 
     runs-on: ubuntu-latest
     steps:
-    - run: echo ::set-output name=sha_short::$(git rev-parse --short=4 ${{ github.sha }})
+    - run: echo ::set-output name=sha_short::$(echo ${{ github.sha }} | cut -f 1,8)
       id: vars
     - uses: actions/checkout@v2
     - name: Build the Docker image
