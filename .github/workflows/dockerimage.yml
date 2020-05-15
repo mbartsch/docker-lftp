@@ -11,17 +11,15 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
-    env:
-      GITSHORT: $(git rev-parse --short HEAD | cut -f 1,8)
-
     steps:
-    - run: export
+    - run: echo ::set-output name=sha_short::$(git rev-parse --short=4 ${{ github.sha }})
+      id: vars
     - uses: actions/checkout@v2
     - name: Build the Docker image
       uses: ilteoood/docker_buildx@master
       with:
         publish: true
-        tag: latest,${GITSHORT}
+        tag: latest,${{ steps.vars.outputs.sha_short }}
         imageName: mbartsch/lftp
         dockerHubUser: ${{ secrets.DOCKER_USERNAME }}
         dockerHubPassword: ${{ secrets.DOCKER_PASSWORD }}
