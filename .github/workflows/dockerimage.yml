@@ -12,21 +12,16 @@ jobs:
 
     runs-on: ubuntu-latest
     env:
-      SHA8: ${GITHUB_SHA::8}
+      GITSHORT: $(git rev-parse --short HEAD | cut -f 1,8)
 
     steps:
+    - run: export
     - uses: actions/checkout@v2
     - name: Build the Docker image
       uses: ilteoood/docker_buildx@master
       with:
         publish: true
+        tag: latest,${GITSHORT}
         imageName: mbartsch/lftp
-        dockerHubUser: ${{ secrets.DOCKER_USERNAME }}
-        dockerHubPassword: ${{ secrets.DOCKER_PASSWORD }}
-    - name: Build the Docker image
-      uses: ilteoood/docker_buildx@master
-      with:
-        publish: true
-        imageName: mbartsch/lftp:$SHA8
         dockerHubUser: ${{ secrets.DOCKER_USERNAME }}
         dockerHubPassword: ${{ secrets.DOCKER_PASSWORD }}
