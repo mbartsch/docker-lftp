@@ -1,0 +1,23 @@
+name: Docker Image CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build the Docker image
+      uses: ilteoood/docker_buildx@master
+      with:
+        publish: true
+        imageName: mbartsch/lftp
+        dockerHubUser: ${{ secrets.DOCKER_USERNAME }}
+        dockerHubPassword: ${{ secrets.DOCKER_PASSWORD }}
