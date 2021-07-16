@@ -1,6 +1,7 @@
 FROM alpine:latest
 MAINTAINER Marcelo Bartsch <marcelo@bartsch.cl>
 
-RUN apk --no-cache add lftp ca-certificates openssh
+ADD init.sh /
+RUN apk --no-cache add lftp ca-certificates openssh su-exec && chmod +x /init.sh
 
-ENTRYPOINT [ "/usr/bin/lftp" ]
+ENTRYPOINT [ "/init.sh","/usr/bin/lftp" ]
