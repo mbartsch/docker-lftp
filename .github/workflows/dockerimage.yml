@@ -64,7 +64,7 @@ jobs:
         uses: elgohr/Publish-Docker-Github-Action@v5
         with:
           name: mbartsch/lftp
-          tag: ${{ env.DOCKER_TAGS }}
+          tags: ${{ env.DOCKER_TAGS }}
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
           platforms: linux/amd64,linux/arm64
