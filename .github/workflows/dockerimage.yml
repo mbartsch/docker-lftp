@@ -7,30 +7,63 @@ on:
     branches: [ master ]
 
 jobs:
-
   build:
-
     runs-on: ubuntu-latest
     steps:
-    - run: echo ::set-output name=sha_short::$(echo ${{ github.sha }} | cut -c 1-8)
-      id: vars
-    - uses: actions/checkout@v2
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v2
-    - name: Publish to Registry
-      uses: elgohr/Publish-Docker-Github-Action@v5
-      with:
-        name: mbartsch/lftp
-        tag: ${{ steps.vars.outputs.sha_short }}
-        username: ${{ secrets.DOCKER_USERNAME }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
-        platforms: linux/amd64,linux/arm64
-#    - name: Build the Docker image
-#      uses: ilteoood/docker_buildx@v1.0.2
-#      with:
-#        publish: true
-#        tag: latest,${{ steps.vars.outputs.sha_short }}
-#        imageName: mbartsch/lftp
-#        dockerHubUser: ${{ secrets.DOCKER_USERNAME }}
-#        dockerHubPassword: ${{ secrets.DOCKER_PASSWORD }}
-#        platform: linux/amd64,linux/arm64
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      # ── PR build ─────────────────────────────────────────────
+      - name: Set PR tag
+        if: github.event_name == 'pull_request'
+        run: echo "DOCKER_TAGS=DEV-PR-${{ github.event.number }}" >> $GITHUB_ENV
+
+      # ── Master build: read latest tag and bump minor ──────────
+      - name: Get latest semver tag
+        if: github.event_name == 'push'
+        id: get_tag
+        run: |
+          # Fetch all tags
+          git fetch --tags
+
+          # Find the latest vMAJOR.MINOR tag (ignore anything else)
+          LATEST=$(git tag --list 'v*.*' \
+            | sort -t. -k1,1V -k2,2n \
+            | tail -n1)
+
+          if [ -z "$LATEST" ]; then
+            LATEST="v1.0"
+          fi
+
+          echo "Latest tag: $LATEST"
+
+          MAJOR=$(echo "$LATEST" | cut -d. -f1 | tr -d 'v')
+          MINOR=$(echo "$LATEST" | cut -d. -f2)
+          NEW_MINOR=$((MINOR + 1))
+          NEW_TAG="v${MAJOR}.${NEW_MINOR}"
+
+          echo "New tag: $NEW_TAG"
+          echo "NEW_TAG=$NEW_TAG" >> $GITHUB_ENV
+          echo "DOCKER_TAGS=latest,$NEW_TAG" >> $GITHUB_ENV
+
+      - name: Create and push git tag
+        if: github.event_name == 'push'
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git tag "${{ env.NEW_TAG }}"
+          git push origin "${{ env.NEW_TAG }}"
+
+      # ── Build & push ──────────────────────────────────────────
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Publish to Registry
+        uses: elgohr/Publish-Docker-Github-Action@v5
+        with:
+          name: mbartsch/lftp
+          tag: ${{ env.DOCKER_TAGS }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+          platforms: linux/amd64,linux/arm64
