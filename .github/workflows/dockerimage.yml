@@ -21,6 +21,6 @@ jobs:
         publish: true
         tag: latest,${{ steps.vars.outputs.sha_short }}
         imageName: mbartsch/lftp
-        dockerHubUser: ${{ secrets.DOCKER_USERNAME }}
-        dockerHubPassword: ${{ secrets.DOCKER_PASSWORD }}
-        platform: linux/amd64
+        dockerUser: ${{ secrets.DOCKER_USERNAME }}
+        dockerPassword: ${{ secrets.DOCKER_PASSWORD }}
+        platform: linux/amd64,linux/arm64
