@@ -18,7 +18,7 @@ jobs:
       # ── PR build ─────────────────────────────────────────────
       - name: Set PR tag
         if: github.event_name == 'pull_request'
-        run: echo "DOCKER_TAGS=DEV-PR-${{ github.event.number }}" >> $GITHUB_ENV
+        run: echo "DOCKER_TAGS=beta,DEV-PR-${{ github.event.number }}" >> $GITHUB_ENV
 
       # ── Master build: read latest tag and bump minor ──────────
       - name: Get latest semver tag
