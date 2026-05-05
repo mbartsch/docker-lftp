@@ -1,4 +1,3 @@
-#new version
 name: Docker Image CI
 
 on:
@@ -6,6 +5,7 @@ on:
     branches: [ master ]
   pull_request:
     branches: [ master ]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -16,40 +16,32 @@ jobs:
           fetch-depth: 0
 
       # ── PR build ─────────────────────────────────────────────
-      - name: Set PR tag
+      - name: Set PR tags
         if: github.event_name == 'pull_request'
-        run: echo "DOCKER_TAGS=beta,DEV-PR-${{ github.event.number }}" >> $GITHUB_ENV
+        run: |
+          echo "IMAGE_TAGS=mbartsch/lftp:beta,mbartsch/lftp:DEV-PR-${{ github.event.number }}" >> $GITHUB_ENV
 
-      # ── Master build: read latest tag and bump minor ──────────
+      # ── Master / manual build: read latest tag and bump minor ─
       - name: Get latest semver tag
-        if: github.event_name == 'push'
+        if: github.event_name != 'pull_request'
         id: get_tag
         run: |
-          # Fetch all tags
           git fetch --tags
-
-          # Find the latest vMAJOR.MINOR tag (ignore anything else)
           LATEST=$(git tag --list 'v*.*' \
             | sort -t. -k1,1V -k2,2n \
             | tail -n1)
-
-          if [ -z "$LATEST" ]; then
-            LATEST="v1.0"
-          fi
-
+          if [ -z "$LATEST" ]; then LATEST="v1.0"; fi
           echo "Latest tag: $LATEST"
-
           MAJOR=$(echo "$LATEST" | cut -d. -f1 | tr -d 'v')
           MINOR=$(echo "$LATEST" | cut -d. -f2)
-          NEW_MINOR=$((MINOR + 1))
-          NEW_TAG="v${MAJOR}.${NEW_MINOR}"
-
+          NEW_TAG="v${MAJOR}.$((MINOR + 1))"
           echo "New tag: $NEW_TAG"
           echo "NEW_TAG=$NEW_TAG" >> $GITHUB_ENV
-          echo "DOCKER_TAGS=latest,$NEW_TAG" >> $GITHUB_ENV
+          GITEA="${{ secrets.GITEA_REGISTRY }}/mbartsch/lftp"
+          echo "IMAGE_TAGS=mbartsch/lftp:latest,mbartsch/lftp:${NEW_TAG},${GITEA}:latest,${GITEA}:${NEW_TAG}" >> $GITHUB_ENV
 
       - name: Create and push git tag
-        if: github.event_name == 'push'
+        if: github.event_name != 'pull_request'
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
@@ -60,11 +52,23 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      - name: Publish to Registry
-        uses: elgohr/Publish-Docker-Github-Action@v5
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
         with:
-          name: mbartsch/lftp
-          tags: ${{ env.DOCKER_TAGS }}
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Log in to Gitea registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.GITEA_REGISTRY }}
+          username: ${{ secrets.GITEA_USERNAME }}
+          password: ${{ secrets.GITEA_PASSWORD }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          push: true
           platforms: linux/amd64,linux/arm64
+          tags: ${{ env.IMAGE_TAGS }}
